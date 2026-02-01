@@ -1,0 +1,167 @@
+        private void MenuTools_DecodeUDS_Click(object sender, EventArgs e)
+        {
+            if (rtbEditor.SelectedText.Length == 0)
+            {
+                MessageBox.Show(this, "Please select UDS service text to decode.", "No Selection", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            string udsCode = rtbEditor.SelectedText.Trim();
+            string decoded = DecodeUDSService(udsCode);
+            MessageBox.Show(this, $"UDS Service {udsCode}: {decoded}", "UDS Decode", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
+
+        private void MenuTools_CountOccurrences_Click(object sender, EventArgs e)
+        {
+            if (rtbEditor.SelectedText.Length == 0)
+            {
+                MessageBox.Show(this, "Please select text to count occurrences.", "No Selection", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            string selectedText = rtbEditor.SelectedText;
+            int count = CountOccurrences(selectedText);
+            MessageBox.Show(this, $"Found {count} occurrence(s) of '{selectedText}'.", "Count Results", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
+
+        private void MenuTools_HighlightAllOccurrences_Click(object sender, EventArgs e)
+        {
+            if (rtbEditor.SelectedText.Length == 0)
+            {
+                MessageBox.Show(this, "Please select text to highlight.", "No Selection", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            string selectedText = rtbEditor.SelectedText;
+            lastSearchText = selectedText;
+            RepaintAllHighlights();
+            HighlightAllOccurrences(selectedText, highlightColor);
+            int count = CountOccurrences(selectedText);
+            MessageBox.Show(this, $"Highlighted {count} occurrence(s) of '{selectedText}'.", "Highlight All", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
+
+        private void MenuTools_ClearHighlights_Click(object sender, EventArgs e)
+        {
+            ClearHighlights();
+        }
+
+        private void MenuTools_UndoTemplateInsertion_Click(object sender, EventArgs e)
+        {
+            if (string.IsNullOrEmpty(contentBeforeTemplate))
+            {
+                MessageBox.Show(this, "No template insertion to undo.", "No History", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            rtbEditor.Text = contentBeforeTemplate;
+            contentBeforeTemplate = string.Empty;
+            isDirty = true;
+            UpdateTitle();
+            UpdateStatusBar();
+            MessageBox.Show(this, "Template insertion undone.", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
+
+        private void MenuTools_InsertTemplate_Click(object sender, EventArgs e)
+        {
+            using (Form templateDialog = new Form())
+            {
+                templateDialog.Text = "Insert Template";
+                templateDialog.Width = 350;
+                templateDialog.Height = 200;
+                templateDialog.StartPosition = FormStartPosition.CenterParent;
+                templateDialog.FormBorderStyle = FormBorderStyle.FixedDialog;
+                templateDialog.MaximizeBox = false;
+                templateDialog.MinimizeBox = false;
+
+                Label promptLabel = new Label() { Left = 20, Top = 20, Text = "Select a template:", Width = 300, AutoSize = false };
+                ListBox templateListBox = new ListBox() { Left = 20, Top = 50, Width = 300, Height = 80 };
+                templateListBox.Items.Add("UDS Diagnostic Session");
+                templateListBox.Items.Add("CAN Frame Template");
+                templateListBox.Items.Add("Error Log Template");
+                templateListBox.Items.Add("Automotive Report");
+
+                Button insertButton = new Button() { Text = "&Insert", Left = 150, Top = 140, Width = 70, DialogResult = DialogResult.OK };
+                Button cancelButton = new Button() { Text = "Cancel", Left = 230, Top = 140, Width = 70, DialogResult = DialogResult.Cancel };
+
+                templateDialog.Controls.Add(promptLabel);
+                templateDialog.Controls.Add(templateListBox);
+                templateDialog.Controls.Add(insertButton);
+                templateDialog.Controls.Add(cancelButton);
+
+                templateDialog.AcceptButton = insertButton;
+                templateDialog.CancelButton = cancelButton;
+
+                if (templateDialog.ShowDialog(this) == DialogResult.OK && templateListBox.SelectedIndex >= 0)
+                {
+                    contentBeforeTemplate = rtbEditor.Text;
+                    string template = templateListBox.SelectedItem?.ToString() ?? "";
+                    string templateText = template switch
+                    {
+                        "UDS Diagnostic Session" => "=== UDS Diagnostic Session ===\nService: 0x10\nSubFunction: 0x01\nSession Type: Default\n\n",
+                        "CAN Frame Template" => "CAN ID: 0x000\nDLC: 8\nData: [00 00 00 00 00 00 00 00]\n\n",
+                        "Error Log Template" => "=== Error Log ===\nTimestamp: \nError Code: \nDescription: \nSeverity: \n\n",
+                        "Automotive Report" => "=== Automotive Diagnostics Report ===\nVehicle: \nDate: \nMileage: \nIssues Found: \n\n",
+                        _ => ""
+                    };
+
+                    rtbEditor.Text += templateText;
+                    isDirty = true;
+                    UpdateTitle();
+                    UpdateStatusBar();
+                }
+            }
+        }
+
+        private void MenuTools_HexToAscii_Click(object sender, EventArgs e)
+        {
+            if (rtbEditor.SelectedText.Length == 0)
+            {
+                MessageBox.Show(this, "Please select hex text to convert.", "No Selection", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            try
+            {
+                string hex = rtbEditor.SelectedText.Replace(" ", "");
+                StringBuilder sb = new StringBuilder();
+                for (int i = 0; i < hex.Length; i += 2)
+                {
+                    string byteString = hex.Substring(i, Math.Min(2, hex.Length - i));
+                    sb.Append((char)Convert.ToByte(byteString, 16));
+                }
+                rtbEditor.SelectedText = sb.ToString();
+                isDirty = true;
+                UpdateTitle();
+            }
+            catch
+            {
+                MessageBox.Show(this, "Invalid hex input.", "Conversion Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private void MenuTools_AsciiToHex_Click(object sender, EventArgs e)
+        {
+            if (rtbEditor.SelectedText.Length == 0)
+            {
+                MessageBox.Show(this, "Please select text to convert to hex.", "No Selection", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            try
+            {
+                string ascii = rtbEditor.SelectedText;
+                StringBuilder sb = new StringBuilder();
+                foreach (char c in ascii)
+                {
+                    sb.Append(((int)c).ToString("X2"));
+                    sb.Append(" ");
+                }
+                rtbEditor.SelectedText = sb.ToString().TrimEnd();
+                isDirty = true;
+                UpdateTitle();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(this, $"Conversion error:\n{ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }

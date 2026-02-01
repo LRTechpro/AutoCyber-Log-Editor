@@ -1,0 +1,15 @@
+            // Create a context menu strip for right-click operations on the editor
+            // This provides quick access to tools like Decode UDS, Hex to ASCII, ASCII to Hex, etc.
+            ContextMenuStrip contextMenu = new ContextMenuStrip();
+            
+            // Add menu items to the context menu
+            // Use sender parameter (which will be the ToolStripItem) instead of passing null
+            contextMenu.Items.Add("Decode &UDS Service", null, MenuTools_DecodeUDS_Click);
+            contextMenu.Items.Add("&Hex to ASCII", null, MenuTools_HexToAscii_Click);
+            contextMenu.Items.Add("&ASCII to Hex", null, MenuTools_AsciiToHex_Click);
+            contextMenu.Items.Add(new ToolStripSeparator());
+            contextMenu.Items.Add("&Track Selected String", null, MenuTools_TrackSelectedString_Click);
+            contextMenu.Items.Add("&Clear Highlights", null, MenuTools_ClearHighlights_Click);
+
+            // Assign the context menu to the RichTextBox so it appears on right-click
+            rtbEditor.ContextMenuStrip = contextMenu;
