@@ -287,10 +287,18 @@ namespace AutoCyber_Log_Editor
             // Create new context menu strip
             ContextMenuStrip contextMenu = new ContextMenuStrip();
 
-            // Standard clipboard operations
-            contextMenu.Items.Add("&Cut", null, (s, e) => rtbEditor.Cut());
-            contextMenu.Items.Add("&Copy", null, (s, e) => rtbEditor.Copy());
-            contextMenu.Items.Add("&Paste", null, (s, e) => rtbEditor.Paste());
+            // Standard clipboard operations - updated to use plain text methods
+            contextMenu.Items.Add("Cu&t", null, (s, e) => {
+                if (rtbEditor.SelectionLength > 0)
+                {
+                    CopySelectionAsPlainText();
+                    rtbEditor.SelectedText = "";
+                    isDirty = true;
+                    UpdateTitle();
+                }
+            });
+            contextMenu.Items.Add("&Copy", null, (s, e) => CopySelectionAsPlainText());
+            contextMenu.Items.Add("&Paste", null, (s, e) => PasteAndMaintainHighlights());
             contextMenu.Items.Add("Select &All", null, (s, e) => rtbEditor.SelectAll());
 
             // Separator for visual grouping
@@ -2270,6 +2278,115 @@ namespace AutoCyber_Log_Editor
 
         #endregion
 
+        /// <summary>
+        /// Copies selected text to clipboard as plain text without any formatting.
+        /// This ensures highlights don't carry over when pasting into other applications.
+        /// </summary>
+        private void CopyAsPlainText()
+        {
+            if (rtbEditor.SelectionLength > 0)
+            {
+                Clipboard.SetText(rtbEditor.SelectedText);
+            }
+        }
+
+        /// <summary>
+        /// Overrides the default copy behavior to always copy as plain text.
+        /// This prevents background color formatting from being copied to clipboard.
+        /// </summary>
+        private void CopySelectionAsPlainText()
+        {
+            if (rtbEditor.SelectionLength > 0)
+            {
+                try
+                {
+                    // Clear clipboard first
+                    Clipboard.Clear();
+                    
+                    // Copy only the plain text
+                    string plainText = rtbEditor.SelectedText;
+                    Clipboard.SetText(plainText, TextDataFormat.UnicodeText);
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show(this, $"Copy failed: {ex.Message}", "Copy Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Handles keyboard shortcuts for copy operations.
+        /// Intercepts Ctrl+C to ensure plain text copying.
+        /// </summary>
+        protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
+        {
+            // Handle Ctrl+C - copy as plain text
+            if (keyData == (Keys.Control | Keys.C))
+            {
+                CopySelectionAsPlainText();
+                return true; // Indicate we handled this key
+            }
+            
+            // Handle Ctrl+X - cut as plain text
+            if (keyData == (Keys.Control | Keys.X))
+            {
+                if (rtbEditor.SelectionLength > 0)
+                {
+                    CopySelectionAsPlainText();
+                    rtbEditor.SelectedText = ""; // Delete selected text
+                    isDirty = true;
+                    UpdateTitle();
+                }
+                return true;
+            }
+            
+            // Handle Ctrl+V - paste and reapply highlights
+            if (keyData == (Keys.Control | Keys.V))
+            {
+                PasteAndMaintainHighlights();
+                return true;
+            }
+            
+            // Let base class handle all other keys
+            return base.ProcessCmdKey(ref msg, keyData);
+        }
+
+        /// <summary>
+        /// Pastes text from clipboard and maintains highlight state.
+        /// </summary>
+        private void PasteAndMaintainHighlights()
+        {
+            if (Clipboard.ContainsText())
+            {
+                try
+                {
+                    // Get plain text from clipboard
+                    string textToPaste = Clipboard.GetText(TextDataFormat.UnicodeText);
+                    
+                    // Insert at current position
+                    int startPos = rtbEditor.SelectionStart;
+                    rtbEditor.SelectedText = textToPaste;
+                    
+                    // Mark as dirty
+                    isDirty = true;
+                    UpdateTitle();
+                    UpdateStatusBar();
+                    
+                    // Reapply all highlights
+                    RepaintAllHighlights();
+                    
+                    // If there's an active search, re-highlight it
+                    if (!string.IsNullOrWhiteSpace(lastSearchText))
+                    {
+                        HighlightAllOccurrences(lastSearchText);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show(this, $"Paste failed: {ex.Message}", "Paste Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            }
+        }
     } // End of Form1 class
 
     /// <summary>

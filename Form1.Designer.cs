@@ -75,9 +75,17 @@ namespace AutoCyber_Log_Editor
             editMenu.DropDownItems.Add("&Undo", null, (s, e) => { if (rtbEditor != null) rtbEditor.Undo(); });
             editMenu.DropDownItems.Add("&Redo", null, (s, e) => { if (rtbEditor != null) rtbEditor.Redo(); });
             editMenu.DropDownItems.Add(new ToolStripSeparator());
-            editMenu.DropDownItems.Add("Cu&t", null, (s, e) => { if (rtbEditor != null) rtbEditor.Cut(); });
-            editMenu.DropDownItems.Add("&Copy", null, (s, e) => { if (rtbEditor != null) rtbEditor.Copy(); });
-            editMenu.DropDownItems.Add("&Paste", null, (s, e) => { if (rtbEditor != null) rtbEditor.Paste(); });
+            editMenu.DropDownItems.Add("Cu&t", null, (s, e) => { 
+    if (rtbEditor != null && rtbEditor.SelectionLength > 0) 
+    {
+        CopySelectionAsPlainText();
+        rtbEditor.SelectedText = "";
+        isDirty = true;
+        UpdateTitle();
+    }
+});
+            editMenu.DropDownItems.Add("&Copy", null, (s, e) => { if (rtbEditor != null) CopySelectionAsPlainText(); });
+            editMenu.DropDownItems.Add("&Paste", null, (s, e) => { if (rtbEditor != null) PasteAndMaintainHighlights(); });
             editMenu.DropDownItems.Add("&Delete", null, (s, e) => { if (rtbEditor != null && rtbEditor.SelectionLength > 0) rtbEditor.SelectedText = ""; });
             editMenu.DropDownItems.Add(new ToolStripSeparator());
             editMenu.DropDownItems.Add("Select &All", null, (s, e) => { if (rtbEditor != null) rtbEditor.SelectAll(); });
